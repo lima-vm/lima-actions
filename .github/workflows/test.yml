@@ -9,7 +9,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ["ubuntu-24.04", "ubuntu-24.04-arm"]
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./setup
@@ -17,7 +21,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cache/lima
-          key: lima-${{ steps.lima-actions-setup.outputs.version }}
+          key: lima-${{ steps.lima-actions-setup.outputs.version }}-${{ matrix.runner }}
       - run: limactl start --plain --name=default --cpus=1 --memory=1 template://fedora
       - uses: ./ssh
       - run: rsync -a -e ssh . lima-default:/tmp/repo

@@ -19,13 +19,41 @@ runs:
       shell: bash
       run: |
         set -eux -o pipefail
-        [ "$(uname)" = "Linux" ]
-        [ "$(uname -m)" = "x86_64" ]
-        sudo apt-get update -qq
-        sudo apt-get install -qqy --no-install-recommends ovmf qemu-system-x86 qemu-utils
-        sudo modprobe kvm
-        # `sudo usermod -aG kvm $(whoami)` does not take an effect on GHA
-        sudo chown $(whoami) /dev/kvm
+        case "$(uname)" in
+          Linux)
+            sudo dmesg | grep -i kvm
+            echo
+            echo "-----"
+            cat /proc/cpuinfo
+            echo "-----"
+            echo
+            qemu_arch=""
+            case "$(uname -m)" in
+              x86_64)
+                qemu_arch=x86
+                ;;
+              aarch64)
+                qemu_arch=arm
+                ;;
+              *)
+                echo >&2 "Unsupported host architecture"
+                exit 1
+                ;;
+            esac
+            sudo apt-get update -qq
+            sudo apt-get install -qqy --no-install-recommends ovmf qemu-system-${qemu_arch} qemu-utils
+            sudo modprobe kvm
+            # `sudo usermod -aG kvm $(whoami)` does not take an effect on GHA
+            sudo chown $(whoami) /dev/kvm
+            ;;
+          Darwin)
+            brew install qemu
+            ;;
+          *)
+            echo >&2 "Unsupported host operating system"
+            exit 1
+            ;;
+        esac
     - name: "Set up Lima"
       id: "setup-lima"
       env:
@@ -37,7 +65,7 @@ runs:
         if [ "${VERSION}" = "latest" ]; then
           VERSION="$(curl -fsSL -H "Authorization: token ${GITHUB_TOKEN}" https://api.github.com/repos/lima-vm/lima/releases/latest | jq -r .tag_name)"
         fi
-        FILE="lima-${VERSION:1}-Linux-x86_64.tar.gz"
+        FILE="lima-${VERSION:1}-$(uname)-$(uname -m).tar.gz"
         curl -fOSL https://github.com/lima-vm/lima/releases/download/${VERSION}/${FILE}
         gh attestation verify --owner=lima-vm "${FILE}"
         sudo tar Cxzf /usr/local "${FILE}"
