@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: Copyright The Lima Authors
+# SPDX-License-Identifier: Apache-2.0
+
+name: "Set up SSH"
+description: "Set up SSH"
+runs:
+  using: "composite"
+  steps:
+    - name: "Set up SSH"
+      id: setup-ssh
+      shell: bash
+      run: |
+        set -eux -o pipefail
+        mkdir -p -m 0700 ~/.ssh
+        (
+          cd ~/.lima
+          for f in $(ls | grep -v ^_); do
+            config="$(pwd)/${f}/ssh.config"
+            [ -e "${config}" ] && echo "Include ${config}" >> ~/.ssh/config.tmp
+          done
+        )
+        (
+          cd ~/.ssh
+          if [ -e config ]; then
+            # "Include" must be in the top section of the config
+            cat config.tmp config > config.tmp2
+            mv config.tmp2 config
+          else
+            mv config.tmp config
+          fi
+          rm -f config.tmp*
+        )

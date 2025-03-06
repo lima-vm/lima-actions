@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: Copyright The Lima Authors
+# SPDX-License-Identifier: Apache-2.0
+
+name: "Set up"
+description: "Set up Lima"
+inputs:
+  version:
+    default: "latest"
+    description: "Lima version. e.g., `latest`, `v1.0.6`"
+outputs:
+  version:
+    description: "Resolved Lima version."
+    value: ${{ steps.setup-lima.outputs.version }}
+runs:
+  using: "composite"
+  steps:
+    - name: "Set up QEMU"
+      id: "setup-qemu"
+      shell: bash
+      run: |
+        set -eux -o pipefail
+        [ "$(uname)" = "Linux" ]
+        [ "$(uname -m)" = "x86_64" ]
+        sudo apt-get update -qq
+        sudo apt-get install -qqy --no-install-recommends ovmf qemu-system-x86 qemu-utils
+        sudo modprobe kvm
+        # `sudo usermod -aG kvm $(whoami)` does not take an effect on GHA
+        sudo chown $(whoami) /dev/kvm
+    - name: "Set up Lima"
+      id: "setup-lima"
+      env:
+        GITHUB_TOKEN: ${{ github.token }}  # required by `gh attestation verify`
+        VERSION: ${{ inputs.version }}
+      shell: bash
+      run: |
+        set -eux -o pipefail
+        if [ "${VERSION}" = "latest" ]; then
+          VERSION="$(curl -fsSL -H "Authorization: token ${GITHUB_TOKEN}" https://api.github.com/repos/lima-vm/lima/releases/latest | jq -r .tag_name)"
+        fi
+        FILE="lima-${VERSION:1}-Linux-x86_64.tar.gz"
+        curl -fOSL https://github.com/lima-vm/lima/releases/download/${VERSION}/${FILE}
+        gh attestation verify --owner=lima-vm "${FILE}"
+        sudo tar Cxzf /usr/local "${FILE}"
+        rm -f "${FILE}"
+        echo "version=${VERSION}" >>$GITHUB_OUTPUT

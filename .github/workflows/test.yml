@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: Copyright The Lima Authors
+# SPDX-License-Identifier: Apache-2.0
+
+name: "Test"
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./setup
+        id: lima-actions-setup
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/lima
+          key: lima-${{ steps.lima-actions-setup.outputs.version }}
+      - run: limactl start --plain --name=default --cpus=1 --memory=1 template://fedora
+      - uses: ./ssh
+      - run: rsync -a -e ssh . lima-default:/tmp/repo
+      - run: ssh lima-default ls -l /tmp/repo
