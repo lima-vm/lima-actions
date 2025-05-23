@@ -24,3 +24,11 @@ steps:
 
   - run: ssh lima-default ls -l /tmp/repo
 ```
+
+## Optional parameters
+### `lima-vm/lima-actions/setup`
+- `version` (string): Lima version. e.g., "latest", "v1.0.6". Defaults to "latest".
+- `additional_guestagents` (boolean): Install lima-additional-guestagents. Usually not needed. Defaults to `false`.
+
+### `lima-vm/lima-actions/ssh`
+None
