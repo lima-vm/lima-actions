@@ -7,6 +7,10 @@ inputs:
   version:
     default: "latest"
     description: "Lima version. e.g., `latest`, `v1.0.6`"
+  additional_guestagents:
+    type: boolean
+    default: false
+    description: "Install lima-additional-guestagents. Usually not needed."
 outputs:
   version:
     description: "Resolved Lima version."
@@ -43,3 +47,18 @@ runs:
         sudo tar Cxzf /usr/local "${FILE}"
         rm -f "${FILE}"
         echo "version=${VERSION}" >>$GITHUB_OUTPUT
+    - name: "Set up lima-additional-guestagents"
+      id: "setup-lima-additional-guestagents"
+      # fromJSON is needed here for booleans
+      if: ${{ fromJSON(inputs.additional_guestagents) }}
+      env:
+        GITHUB_TOKEN: ${{ github.token }}  # required by `gh attestation verify`
+        VERSION: ${{ steps.setup-lima.outputs.version }}
+      shell: bash
+      run: |
+        set -eux -o pipefail
+        FILE="lima-additional-guestagents-${VERSION:1}-Linux-x86_64.tar.gz"
+        curl -fOSL https://github.com/lima-vm/lima/releases/download/${VERSION}/${FILE}
+        gh attestation verify --owner=lima-vm "${FILE}"
+        sudo tar Cxzf /usr/local "${FILE}"
+        rm -f "${FILE}"
